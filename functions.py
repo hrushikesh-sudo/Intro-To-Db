@@ -127,53 +127,89 @@ def department_exists(dept_id):
     conn.close()
 
     return result is not None
-
-def add_course(dept_id, course_id, course_name, credits):
-    print(f"\n[FUNC] add_course({dept_id}, {course_id}, {course_name}, {credits})")
+def add_course(dept_id, course_id, teacher_id, classroom):
+    print(f"\n[FUNC] add_course({dept_id}, {course_id}, {teacher_id}, {classroom})")
 
     # -------------------------------
     # VALIDATIONS
     # -------------------------------
     if not department_exists(dept_id):
-        print("[ERROR] ❌ Department does not exist")
         return "❌ Department does not exist"
 
+    if not course_exists(course_id):
+        return "❌ Course does not exist"
 
-    if course_exists(course_id):
-        print("[ERROR] ❌ Course already exists")
-        return "❌ Course already exists"
+    if not teacher_exists(teacher_id):
+        return "❌ Teacher does not exist"
 
     conn = get_connection()
+    if conn is None:
+        return "❌ DB Connection failed"
+
     cursor = conn.cursor()
 
-    # -------------------------------
-    # INSERT INTO course table
-    # -------------------------------
-    query = """
-        INSERT INTO course (courseId, cname, credits, deptNo)
-        VALUES (%s, %s, %s, %s)
-    """
-    params = (course_id, course_name, credits, dept_id)
-
     try:
-        debug_query(query, params)
-        cursor.execute(query, params)
+        # -------------------------------
+        # CHECK COURSE BELONGS TO DEPT
+        # -------------------------------
+        query1 = """
+            SELECT *
+            FROM course
+            WHERE courseId = %s AND deptNo = %s
+        """
+        params1 = (course_id, dept_id)
+
+        debug_query(query1, params1)
+        cursor.execute(query1, params1)
+
+        if cursor.fetchone() is None:
+            return "❌ Course does not belong to this department"
+
+        # -------------------------------
+        # CHECK TEACHER BELONGS TO DEPT
+        # -------------------------------
+        query2 = """
+            SELECT *
+            FROM professor
+            WHERE empId = %s AND deptNo = %s
+        """
+        params2 = (teacher_id, dept_id)
+
+        debug_query(query2, params2)
+        cursor.execute(query2, params2)
+
+        if cursor.fetchone() is None:
+            return "❌ Teacher does not belong to this department"
+
+        # -------------------------------
+        # INSERT / UPDATE TEACHING
+        # -------------------------------
+        query3 = """
+            INSERT INTO teaching (empId, courseId, sem, year, classRoom)
+            VALUES (%s, %s, 'even', 2006, %s)
+            ON DUPLICATE KEY UPDATE
+                empId = VALUES(empId),
+                classRoom = VALUES(classRoom)
+        """
+        params3 = (teacher_id, course_id, classroom)
+
+        debug_query(query3, params3)
+        cursor.execute(query3, params3)
 
         conn.commit()
 
-        print("[SUCCESS] ✅ Course added to course table")
+        print("[SUCCESS] ✅ Course offering updated for even 2006")
+        return "✅ Course offering updated successfully"
 
     except Exception as e:
+        conn.rollback()
         print("[ERROR] ❌", e)
-        conn.close()
         return f"❌ Error: {e}"
 
     finally:
         cursor.close()
         conn.close()
         print("[DB] Connection closed")
-
-    return "✅ Course added successfully with teacher"
 
 
 def student_exists(roll_no):

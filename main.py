@@ -28,11 +28,11 @@ if menu == "Add Course":
 
     dept_id = st.text_input("Department ID")
     course_id = st.text_input("Course ID")
-    cname = st.text_input("Course Name")
-    credits = st.text_input("Credits")
+    teacherid = st.text_input("Teacher ID")
+    classroom = st.text_input("classroom")
 
     if st.button("Add Course"):
-        result = add_course(dept_id, course_id, cname, credits)
+        result = add_course(dept_id, course_id, teacherid, classroom)
         st.write(result)
 
 
