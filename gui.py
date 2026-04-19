@@ -1,7 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox
 
-from functions import add_course_db, enroll_student_db
+from functions import (
+    TARGET_TERM_LABEL,
+    add_course_db,
+    enroll_student_db,
+)
 
 
 def start_gui():
@@ -20,7 +24,7 @@ def start_gui():
 
     tk.Label(
         frame1,
-        text="Add Course Offering\nEven Semester 2006",
+        text=f"Add Course Offering\n{TARGET_TERM_LABEL}",
         font=("Arial", 16),
         justify="center",
     ).pack(pady=12)
@@ -59,17 +63,14 @@ def start_gui():
 
     tk.Label(
         frame2,
-        text="Student Enrollment\nEven Semester 2006",
+        text=f"Student Enrollment\n{TARGET_TERM_LABEL}",
         font=("Arial", 16),
         justify="center",
     ).pack(pady=12)
 
-    enroll_dept_entry = tk.Entry(frame2)
     roll_entry = tk.Entry(frame2)
     course_list_entry = tk.Entry(frame2, width=40)
 
-    tk.Label(frame2, text="Department ID").pack()
-    enroll_dept_entry.pack()
 
     tk.Label(frame2, text="Roll No").pack()
     roll_entry.pack()
@@ -79,7 +80,6 @@ def start_gui():
 
     def enroll():
         result = enroll_student_db(
-            enroll_dept_entry.get(),
             roll_entry.get(),
             course_list_entry.get().split(","),
         )

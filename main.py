@@ -1,12 +1,13 @@
 import argparse
 
-from functions import add_course_db, enroll_student_db
+from functions import TARGET_TERM_LABEL, add_course_db, enroll_student_db
 from gui import start_gui
 
 
 def run_cli():
     while True:
         print("\nAcademic DB App - Assn 4A")
+        print(f"Target term: {TARGET_TERM_LABEL}")
         print("1. Add or update course offering")
         print("2. Enroll student")
         print("3. Exit")
@@ -20,10 +21,9 @@ def run_cli():
             classroom = input("Classroom: ").strip()
             print(add_course_db(dept_id, course_id, teacher_id, classroom))
         elif choice == "2":
-            dept_id = input("Department ID: ").strip()
             roll_no = input("Roll No: ").strip()
             course_ids = input("Course IDs (comma separated): ").split(",")
-            print(enroll_student_db(dept_id, roll_no, course_ids))
+            print(enroll_student_db(roll_no, course_ids))
         elif choice == "3":
             break
         else:

@@ -3,7 +3,7 @@
 Python application for the `academic_insti` MySQL database with the two required features:
 
 1. Add or update a course offering for the Even semester of 2006.
-2. Enroll a student into courses for the same department and semester after prerequisite validation.
+2. Enroll a student into one or more courses for the same semester after prerequisite validation.
 
 
 ## Requirements
@@ -72,24 +72,22 @@ Checks performed:
 
 Effect:
 
-- Adds or updates the `teaching` entry for `Even 2006`
+- Adds or updates the `teaching` entry for `Even Semester 2006`
 
 ### 2. Student Enrollment
 
 Inputs:
 
-- Department ID
 - Roll No
-- Course IDs
+- Course IDs (comma separated in the CLI/GUI)
 
 Checks performed:
 
-- Department exists
-- Student belongs to that department
-- Course belongs to that department
-- Course is offered in `Even 2006`
+- Student exists
+- Course exists
+- Course is offered in `Even Semester 2006`
 - Student has passed all prerequisite courses
-- Student is not already enrolled in that course in `Even 2006`
+- Student is not already enrolled in that course in `Even Semester 2006`
 
 Effect:
 

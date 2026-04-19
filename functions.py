@@ -1,42 +1,43 @@
 from db import get_connection
 
-TARGET_SEMESTER = "Even"
+TARGET_SEMESTER = "even"
 TARGET_YEAR = 2006
+TARGET_TERM_LABEL = "Even Semester 2006"
 PASSING_GRADES = {"A", "B", "C", "D", "E", "S"}
 
 
-def _course_exists_for_department(cursor, dept_id, course_id):
+def _course_exists(cursor, course_id):
     cursor.execute(
         """
         SELECT cname
         FROM course
-        WHERE courseId = %s AND deptNo = %s
+        WHERE courseId = %s
         """,
-        (course_id, dept_id),
+        (course_id,),
     )
     return cursor.fetchone()
 
 
-def _teacher_exists_for_department(cursor, dept_id, teacher_id):
+def _teacher_exists(cursor, teacher_id):
     cursor.execute(
         """
         SELECT name
         FROM professor
-        WHERE empId = %s AND deptNo = %s
+        WHERE empId = %s
         """,
-        (teacher_id, dept_id),
+        (teacher_id,),
     )
     return cursor.fetchone()
 
 
-def _student_exists_for_department(cursor, dept_id, roll_no):
+def _student_exists(cursor, roll_no):
     cursor.execute(
         """
         SELECT name
         FROM student
-        WHERE rollNo = %s AND deptNo = %s
+        WHERE rollNo = %s
         """,
-        (roll_no, dept_id),
+        (roll_no,),
     )
     return cursor.fetchone()
 
@@ -60,8 +61,12 @@ def _has_passed_course(cursor, roll_no, course_id):
         SELECT grade
         FROM enrollment
         WHERE rollNo = %s AND courseId = %s
+          AND (
+                year < %s
+                OR (year = %s AND sem = 'odd')
+              )
         """,
-        (roll_no, course_id),
+        (roll_no, course_id, TARGET_YEAR, TARGET_YEAR),
     )
 
     for (grade,) in cursor.fetchall():
@@ -78,6 +83,9 @@ def _missing_prerequisites(cursor, roll_no, course_id):
     ]
 
 
+# -------------------------
+# 1. ADD COURSE (UNCHANGED LOGIC, CLEANED)
+# -------------------------
 def add_course_db(dept_id, course_id, teacher_id, classroom):
     dept_id = dept_id.strip()
     course_id = course_id.strip()
@@ -95,72 +103,41 @@ def add_course_db(dept_id, course_id, teacher_id, classroom):
         if cursor.fetchone() is None:
             return "Invalid Department ID."
 
-        if _course_exists_for_department(cursor, dept_id, course_id) is None:
+        cursor.execute(
+            "SELECT cname FROM course WHERE courseId = %s AND deptNo = %s",
+            (course_id, dept_id),
+        )
+        if cursor.fetchone() is None:
             return "Invalid Course ID for the given department."
 
-        if _teacher_exists_for_department(cursor, dept_id, teacher_id) is None:
-            return "Invalid Teacher ID for the given department."
-
         cursor.execute(
-            """
-            SELECT classRoom
-            FROM teaching
-            WHERE empId = %s AND courseId = %s
-              AND LOWER(sem) = %s AND year = %s
-            """,
-            (teacher_id, course_id, TARGET_SEMESTER.lower(), TARGET_YEAR),
+            "SELECT name FROM professor WHERE empId = %s AND deptNo = %s",
+            (teacher_id, dept_id),
         )
-        existing_teacher_assignment = cursor.fetchone()
-        if existing_teacher_assignment is not None:
-            cursor.execute(
-                """
-                UPDATE teaching
-                SET classRoom = %s, sem = %s, year = %s
-                WHERE empId = %s AND courseId = %s
-                  AND LOWER(sem) = %s AND year = %s
-                """,
-                (
-                    classroom,
-                    TARGET_SEMESTER,
-                    TARGET_YEAR,
-                    teacher_id,
-                    course_id,
-                    TARGET_SEMESTER.lower(),
-                    TARGET_YEAR,
-                ),
-            )
-            conn.commit()
-            return "Course offering updated successfully."
+        if cursor.fetchone() is None:
+            return "Invalid Teacher ID for the given department."
 
         cursor.execute(
             """
             SELECT empId
             FROM teaching
-            WHERE courseId = %s AND LOWER(sem) = %s AND year = %s
+            WHERE courseId = %s AND sem = %s AND year = %s
             """,
-            (course_id, TARGET_SEMESTER.lower(), TARGET_YEAR),
+            (course_id, TARGET_SEMESTER, TARGET_YEAR),
         )
-        current_course_assignment = cursor.fetchone()
+        existing = cursor.fetchone()
 
-        if current_course_assignment is not None:
+        if existing:
             cursor.execute(
                 """
                 UPDATE teaching
-                SET empId = %s, classRoom = %s, sem = %s, year = %s
-                WHERE courseId = %s AND LOWER(sem) = %s AND year = %s
+                SET empId = %s, classRoom = %s
+                WHERE courseId = %s AND sem = %s AND year = %s
                 """,
-                (
-                    teacher_id,
-                    classroom,
-                    TARGET_SEMESTER,
-                    TARGET_YEAR,
-                    course_id,
-                    TARGET_SEMESTER.lower(),
-                    TARGET_YEAR,
-                ),
+                (teacher_id, classroom, course_id, TARGET_SEMESTER, TARGET_YEAR),
             )
             conn.commit()
-            return "Course offering updated successfully."
+            return f"Course offering updated successfully for {TARGET_TERM_LABEL}."
 
         cursor.execute(
             """
@@ -170,65 +147,73 @@ def add_course_db(dept_id, course_id, teacher_id, classroom):
             (teacher_id, course_id, TARGET_SEMESTER, TARGET_YEAR, classroom),
         )
         conn.commit()
-        return "Course offering added successfully."
+        return f"Course offering added successfully for {TARGET_TERM_LABEL}."
+
+    except Exception as e:
+        conn.rollback()
+        
+        return str(e)
     finally:
         cursor.close()
         conn.close()
 
 
-def enroll_student_db(dept_id, roll_no, course_list):
-    dept_id = dept_id.strip()
+# -------------------------
+# 2. ENROLL STUDENT (UPDATED)
+# -------------------------
+def enroll_student_db(roll_no, course_list):
     roll_no = roll_no.strip()
     cleaned_courses = [course.strip() for course in course_list if course.strip()]
 
-    if not dept_id or not roll_no or not cleaned_courses:
-        return "Department ID, Roll No, and at least one Course ID are required."
+    if not roll_no or not cleaned_courses:
+        return "Roll No and at least one Course ID are required."
 
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT name FROM department WHERE deptId = %s", (dept_id,))
-        if cursor.fetchone() is None:
-            return "Invalid Department ID."
-
-        if _student_exists_for_department(cursor, dept_id, roll_no) is None:
-            return "Invalid Student ID for the given department."
+        if _student_exists(cursor, roll_no) is None:
+            return "Invalid Student ID."
 
         enrolled = []
         skipped = []
 
         for course_id in cleaned_courses:
-            if _course_exists_for_department(cursor, dept_id, course_id) is None:
-                skipped.append(f"{course_id}: invalid course for department")
+            # this can be done efficiently by a single sql query but kept as it is for simplicity
+
+            # check course exists
+            if _course_exists(cursor, course_id) is None:
+                skipped.append(f"{course_id}: invalid course")
                 continue
 
+            # check course is offered in target sem/year
             cursor.execute(
                 """
                 SELECT 1
                 FROM teaching
-                WHERE courseId = %s AND LOWER(sem) = %s AND year = %s
+                WHERE courseId = %s AND sem = %s AND year = %s
                 """,
-                (course_id, TARGET_SEMESTER.lower(), TARGET_YEAR),
+                (course_id, TARGET_SEMESTER, TARGET_YEAR),
             )
             if cursor.fetchone() is None:
-                skipped.append(f"{course_id}: not offered in Even 2006")
+                skipped.append(f"{course_id}: not offered in {TARGET_TERM_LABEL}")
                 continue
 
+            # already enrolled?
             cursor.execute(
                 """
-                SELECT grade
+                SELECT 1
                 FROM enrollment
                 WHERE rollNo = %s AND courseId = %s
-                  AND LOWER(sem) = %s AND year = %s
+                  AND sem = %s AND year = %s
                 """,
-                (roll_no, course_id, TARGET_SEMESTER.lower(), TARGET_YEAR),
+                (roll_no, course_id, TARGET_SEMESTER, TARGET_YEAR),
             )
-            existing = cursor.fetchone()
-            if existing is not None:
-                skipped.append(f"{course_id}: already enrolled in Even 2006")
+            if cursor.fetchone() is not None:
+                skipped.append(f"{course_id}: already enrolled in {TARGET_TERM_LABEL}")
                 continue
 
+            # prerequisite check
             missing = _missing_prerequisites(cursor, roll_no, course_id)
             if missing:
                 skipped.append(
@@ -241,7 +226,7 @@ def enroll_student_db(dept_id, roll_no, course_list):
                 INSERT INTO enrollment (rollNo, courseId, sem, year, grade)
                 VALUES (%s, %s, %s, %s, NULL)
                 """,
-                (roll_no, course_id, TARGET_SEMESTER.lower(), TARGET_YEAR),
+                (roll_no, course_id, TARGET_SEMESTER, TARGET_YEAR),
             )
             enrolled.append(course_id)
 
@@ -254,6 +239,10 @@ def enroll_student_db(dept_id, roll_no, course_list):
             messages.append("Skipped: " + "; ".join(skipped))
 
         return "\n".join(messages) if messages else "No enrollment changes made."
+
+    except Exception as e:
+        conn.rollback()
+        return str(e)
     finally:
         cursor.close()
         conn.close()
