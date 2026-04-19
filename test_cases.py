@@ -141,29 +141,33 @@ def test_add_course_empty_fields():
 
 def test_enroll_success():
     name = "Enroll student: valid prerequisite satisfied"
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     _cleanup_enrollment("10454", "760")
 
-    add_course_db("15", "760", "15347", "R20")
+    offering_result = add_course_db("8", "760", "14365", "R20")
     result = enroll_student_db("10454", ["760"])
-    passed = _check_contains(name, result, ["Enrolled successfully: 760"])
+    passed = _check_contains(name, offering_result, ["successfully"]) and _check_contains(
+        name, result, ["Enrolled successfully: 760"]
+    )
 
     _cleanup_enrollment("10454", "760")
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     return passed
 
 
 def test_enroll_missing_prerequisite():
     name = "Enroll student: missing prerequisite"
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     _cleanup_enrollment("1000", "760")
 
-    add_course_db("15", "760", "15347", "R20")
+    offering_result = add_course_db("8", "760", "14365", "R20")
     result = enroll_student_db("1000", ["760"])
-    passed = _check_contains(name, result, ["760: missing prerequisites (169)"])
+    passed = _check_contains(name, offering_result, ["successfully"]) and _check_contains(
+        name, result, ["760: missing prerequisites (169)"]
+    )
 
     _cleanup_enrollment("1000", "760")
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     return passed
 
 
@@ -194,38 +198,42 @@ def test_enroll_course_not_offered():
 
 def test_enroll_duplicate():
     name = "Enroll student: duplicate enrollment"
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     _cleanup_enrollment("10454", "760")
 
-    add_course_db("15", "760", "15347", "R20")
-    enroll_student_db("10454", ["760"])
+    offering_result = add_course_db("8", "760", "14365", "R20")
+    first_result = enroll_student_db("10454", ["760"])
     result = enroll_student_db("10454", ["760"])
-    passed = _check_contains(
-        name,
-        result,
-        [f"760: already enrolled in {TARGET_TERM_LABEL}"],
+    passed = (
+        _check_contains(name, offering_result, ["successfully"])
+        and _check_contains(name, first_result, ["Enrolled successfully: 760"])
+        and _check_contains(
+            name,
+            result,
+            [f"760: already enrolled in {TARGET_TERM_LABEL}"],
+        )
     )
 
     _cleanup_enrollment("10454", "760")
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     return passed
 
 
 def test_enroll_mixed_list():
     name = "Enroll student: mixed valid and invalid courses"
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     _cleanup_enrollment("10454", "760")
 
-    add_course_db("15", "760", "15347", "R20")
+    offering_result = add_course_db("8", "760", "14365", "R20")
     result = enroll_student_db("10454", ["760", "XYZ999"])
-    passed = _check_contains(
+    passed = _check_contains(name, offering_result, ["successfully"]) and _check_contains(
         name,
         result,
         ["Enrolled successfully: 760", "XYZ999: invalid course"],
     )
 
     _cleanup_enrollment("10454", "760")
-    _cleanup_teaching("15347", "760")
+    _cleanup_teaching("14365", "760")
     return passed
 
 
