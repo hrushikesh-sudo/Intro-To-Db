@@ -5,12 +5,6 @@ Python application for the `academic_insti` MySQL database with the two required
 1. Add or update a course offering for the Even semester of 2006.
 2. Enroll a student into courses for the same department and semester after prerequisite validation.
 
-## What Was Fixed
-
-- The original code used wrong table and column names such as `section`, `takes`, `course_id`, and `instructor`.
-- The enrollment logic treated any non-null grade as a pass; it now accepts only passing grades: `A, B, C, D, E, S`.
-- Department validation is now enforced for course, teacher, and student.
-- The SQL dump had a schema issue: `department` referenced `professor` before `professor` was created. This has been corrected in `../academic_insti.sql`.
 
 ## Requirements
 
