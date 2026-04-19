@@ -1,50 +1,46 @@
-import streamlit as st
-from functions import add_course, enroll_student, check_db_connection
+import argparse
 
-st.set_page_config(page_title="Academic DB App")
-
-st.title("🎓 Academic Institute Management System")
-
-# -------------------------------
-# CHECK DB AT STARTUP
-# -------------------------------
-if not check_db_connection():
-    st.error("❌ Cannot connect to database. Check terminal logs.")
-    st.stop()
-else:
-    st.success("✅ Database connected")
+from functions import add_course_db, enroll_student_db
+from gui import start_gui
 
 
-menu = st.sidebar.selectbox(
-    "Choose Operation",
-    ["Add Course", "Enroll Student"]
-)
+def run_cli():
+    while True:
+        print("\nAcademic DB App - Assn 4A")
+        print("1. Add or update course offering")
+        print("2. Enroll student")
+        print("3. Exit")
 
-# -------------------------------
-# ADD COURSE
-# -------------------------------
-if menu == "Add Course":
-    st.header("➕ Add Course Offering")
+        choice = input("Enter choice: ").strip()
 
-    dept_id = st.text_input("Department ID")
-    course_id = st.text_input("Course ID")
-    teacherid = st.text_input("Teacher ID")
-    classroom = st.text_input("classroom")
+        if choice == "1":
+            dept_id = input("Department ID: ").strip()
+            course_id = input("Course ID: ").strip()
+            teacher_id = input("Teacher ID: ").strip()
+            classroom = input("Classroom: ").strip()
+            print(add_course_db(dept_id, course_id, teacher_id, classroom))
+        elif choice == "2":
+            dept_id = input("Department ID: ").strip()
+            roll_no = input("Roll No: ").strip()
+            course_ids = input("Course IDs (comma separated): ").split(",")
+            print(enroll_student_db(dept_id, roll_no, course_ids))
+        elif choice == "3":
+            break
+        else:
+            print("Invalid choice.")
 
-    if st.button("Add Course"):
-        result = add_course(dept_id, course_id, teacherid, classroom)
-        st.write(result)
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Academic institute assignment app")
+    parser.add_argument(
+        "--mode",
+        choices=["gui", "cli"],
+        default="gui",
+        help="Choose GUI or CLI mode.",
+    )
+    args = parser.parse_args()
 
-# -------------------------------
-# ENROLL STUDENT
-# -------------------------------
-elif menu == "Enroll Student":
-    st.header("🧑‍🎓 Enroll Student")
-
-    roll_no = st.text_input("Roll Number")
-    course_id = st.text_input("Course ID")
-
-    if st.button("Enroll"):
-        result = enroll_student(roll_no, course_id)
-        st.write(result)
+    if args.mode == "cli":
+        run_cli()
+    else:
+        start_gui()

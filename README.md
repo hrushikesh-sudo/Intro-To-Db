@@ -1,23 +1,117 @@
-# Assignment 4A - Application Development
+# Assignment 4A - Academic Institute Application
+
+Python application for the `academic_insti` MySQL database with the two required features:
+
+1. Add or update a course offering for the Even semester of 2006.
+2. Enroll a student into courses for the same department and semester after prerequisite validation.
+
+## What Was Fixed
+
+- The original code used wrong table and column names such as `section`, `takes`, `course_id`, and `instructor`.
+- The enrollment logic treated any non-null grade as a pass; it now accepts only passing grades: `A, B, C, D, E, S`.
+- Department validation is now enforced for course, teacher, and student.
+- The SQL dump had a schema issue: `department` referenced `professor` before `professor` was created. This has been corrected in `../academic_insti.sql`.
 
 ## Requirements
+
 - Python 3
-- MySQL
-- academic_insti database
+- MySQL Server
+- Python package `mysql-connector-python`
 
-## Setup Instructions
-1. Install dependency:
-   pip install mysql-connector-python
+## Database Setup
 
-2. Update database credentials in functions.py
+Import the corrected SQL dump:
 
-3. Run the application:
-   streamlit run main.py
+```bash
+mysql -u root -p < ../academic_insti.sql
+```
 
-## Features
-- Add course offering (Even Semester 2006)
-- Enroll students with prerequisite validation
+This creates the `academic_insti` database and loads the sample data.
 
-## Notes
-- Ensure MySQL server is running
-- Ensure required tables exist in academic_insti database
+## Python Setup
+
+Install the dependency:
+
+```bash
+pip install mysql-connector-python
+```
+
+Set database credentials using environment variables:
+
+```bash
+export DB_HOST=localhost
+export DB_USER=root
+export DB_PASSWORD=your_mysql_password
+export DB_NAME=academic_insti
+```
+
+## Run The Application
+
+GUI mode:
+
+```bash
+python main.py
+```
+
+CLI mode:
+
+```bash
+python main.py --mode cli
+```
+
+## Functionality
+
+### 1. Add / Update Course Offering
+
+Inputs:
+
+- Department ID
+- Course ID
+- Teacher ID
+- Classroom
+
+Checks performed:
+
+- Department exists
+- Course belongs to that department
+- Teacher belongs to that department
+
+Effect:
+
+- Adds or updates the `teaching` entry for `Even 2006`
+
+### 2. Student Enrollment
+
+Inputs:
+
+- Department ID
+- Roll No
+- Course IDs
+
+Checks performed:
+
+- Department exists
+- Student belongs to that department
+- Course belongs to that department
+- Course is offered in `Even 2006`
+- Student has passed all prerequisite courses
+- Student is not already enrolled in that course in `Even 2006`
+
+Effect:
+
+- Inserts rows into `enrollment` with `sem='even'`, `year=2006`, `grade=NULL`
+
+## Files
+
+- `db.py`: MySQL connection using environment variables
+- `functions.py`: Core database logic
+- `gui.py`: Tkinter interface
+- `main.py`: Entry point for GUI and CLI
+
+## Verification
+
+The Python files were checked with:
+
+```bash
+python3 -m py_compile db.py functions.py gui.py main.py
+```
