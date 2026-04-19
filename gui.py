@@ -8,6 +8,20 @@ from functions import (
 )
 
 
+def _is_error_message(result):
+    lowered = result.lower()
+    error_prefixes = (
+        "invalid",
+        "all fields",
+        "roll no",
+        "error",
+        "failed",
+        "duplicate",
+        "cannot",
+    )
+    return lowered.startswith(error_prefixes)
+
+
 def start_gui():
     root = tk.Tk()
     root.title("Academic DB App - Assn 4A")
@@ -83,7 +97,7 @@ def start_gui():
             roll_entry.get(),
             course_list_entry.get().split(","),
         )
-        if result.startswith("Invalid") or result.endswith("required."):
+        if _is_error_message(result):
             messagebox.showerror("Error", result)
         else:
             messagebox.showinfo("Enrollment Result", result)

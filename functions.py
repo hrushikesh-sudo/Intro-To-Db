@@ -18,6 +18,18 @@ def _course_exists(cursor, course_id):
     return cursor.fetchone()
 
 
+def _course_exists_in_dept(cursor, course_id, dept_id):
+    cursor.execute(
+        """
+        SELECT cname
+        FROM course
+        WHERE courseId = %s AND deptNo = %s
+        """,
+        (course_id, dept_id),
+    )
+    return cursor.fetchone()
+
+
 def _teacher_exists(cursor, teacher_id):
     cursor.execute(
         """
@@ -26,6 +38,18 @@ def _teacher_exists(cursor, teacher_id):
         WHERE empId = %s
         """,
         (teacher_id,),
+    )
+    return cursor.fetchone()
+
+
+def _teacher_exists_in_dept(cursor, teacher_id, dept_id):
+    cursor.execute(
+        """
+        SELECT name
+        FROM professor
+        WHERE empId = %s AND deptNo = %s
+        """,
+        (teacher_id, dept_id),
     )
     return cursor.fetchone()
 
@@ -63,7 +87,7 @@ def _has_passed_course(cursor, roll_no, course_id):
         WHERE rollNo = %s AND courseId = %s
           AND (
                 year < %s
-                OR (year = %s AND sem = 'odd')
+                OR (year = %s AND LOWER(sem) = 'odd')
               )
         """,
         (roll_no, course_id, TARGET_YEAR, TARGET_YEAR),
@@ -84,7 +108,7 @@ def _missing_prerequisites(cursor, roll_no, course_id):
 
 
 # -------------------------
-# 1. ADD COURSE (UNCHANGED LOGIC, CLEANED)
+# 1. ADD COURSE 
 # -------------------------
 def add_course_db(dept_id, course_id, teacher_id, classroom):
     dept_id = dept_id.strip()
@@ -95,7 +119,11 @@ def add_course_db(dept_id, course_id, teacher_id, classroom):
     if not all([dept_id, course_id, teacher_id, classroom]):
         return "All fields are required."
 
-    conn = get_connection()
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return f"Database connection failed: {e}"
+
     cursor = conn.cursor()
 
     try:
@@ -103,56 +131,26 @@ def add_course_db(dept_id, course_id, teacher_id, classroom):
         if cursor.fetchone() is None:
             return "Invalid Department ID."
 
-        cursor.execute(
-            "SELECT cname FROM course WHERE courseId = %s AND deptNo = %s",
-            (course_id, dept_id),
-        )
-        if cursor.fetchone() is None:
+        if _course_exists_in_dept(cursor, course_id, dept_id) is None:
             return "Invalid Course ID for the given department."
 
-        cursor.execute(
-            "SELECT name FROM professor WHERE empId = %s AND deptNo = %s",
-            (teacher_id, dept_id),
-        )
-        if cursor.fetchone() is None:
+        if _teacher_exists_in_dept(cursor, teacher_id, dept_id) is None:
             return "Invalid Teacher ID for the given department."
-
-        cursor.execute(
-            """
-            SELECT empId
-            FROM teaching
-            WHERE courseId = %s AND sem = %s AND year = %s
-            """,
-            (course_id, TARGET_SEMESTER, TARGET_YEAR),
-        )
-        existing = cursor.fetchone()
-
-        if existing:
-            cursor.execute(
-                """
-                UPDATE teaching
-                SET empId = %s, classRoom = %s
-                WHERE courseId = %s AND sem = %s AND year = %s
-                """,
-                (teacher_id, classroom, course_id, TARGET_SEMESTER, TARGET_YEAR),
-            )
-            conn.commit()
-            return f"Course offering updated successfully for {TARGET_TERM_LABEL}."
 
         cursor.execute(
             """
             INSERT INTO teaching (empId, courseId, sem, year, classRoom)
             VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE classRoom = VALUES(classRoom)
             """,
             (teacher_id, course_id, TARGET_SEMESTER, TARGET_YEAR, classroom),
         )
         conn.commit()
-        return f"Course offering added successfully for {TARGET_TERM_LABEL}."
+        return f"Course offering added/updated successfully for {TARGET_TERM_LABEL}."
 
     except Exception as e:
         conn.rollback()
-        
-        return str(e)
+        return f"A database error occurred: {e}"
     finally:
         cursor.close()
         conn.close()
@@ -191,7 +189,7 @@ def enroll_student_db(roll_no, course_list):
                 """
                 SELECT 1
                 FROM teaching
-                WHERE courseId = %s AND sem = %s AND year = %s
+                WHERE courseId = %s AND LOWER(sem) = %s AND year = %s
                 """,
                 (course_id, TARGET_SEMESTER, TARGET_YEAR),
             )
@@ -205,7 +203,7 @@ def enroll_student_db(roll_no, course_list):
                 SELECT 1
                 FROM enrollment
                 WHERE rollNo = %s AND courseId = %s
-                  AND sem = %s AND year = %s
+                  AND LOWER(sem) = %s AND year = %s
                 """,
                 (roll_no, course_id, TARGET_SEMESTER, TARGET_YEAR),
             )
