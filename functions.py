@@ -15,7 +15,7 @@ def get_connection():
         database="academic_insti",
         port=3306,
         connection_timeout=5,
-        use_pure=True   # 👈 IMPORTANT
+        use_pure=True  
     )
 
         if conn.is_connected():

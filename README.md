@@ -9,10 +9,10 @@
 1. Install dependency:
    pip install mysql-connector-python
 
-2. Update database credentials in db.py
+2. Update database credentials in functions.py
 
 3. Run the application:
-   python main.py
+   streamlit run main.py
 
 ## Features
 - Add course offering (Even Semester 2006)
